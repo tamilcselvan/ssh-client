@@ -512,6 +512,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
                 TextEditingController fieldTextEditingController,
                 FocusNode fieldFocusNode,
                 VoidCallback onFieldSubmitted) {
+              fieldTextEditingController.text = controller.text;
               return TextField(
                 controller: fieldTextEditingController,
                 focusNode: fieldFocusNode,

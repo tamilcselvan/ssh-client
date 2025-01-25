@@ -294,6 +294,11 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         else
           xml.XmlElement(
               xml.XmlName('Keyfile'), [], [xml.XmlText(config['keyPath'])]),
+        // logontype 1 = normal, 2 = ask for password, 3 = ask for keyfile
+        // check usePassword to determine logontype
+        xml.XmlElement(xml.XmlName('Logontype'), [],
+            [xml.XmlText(usePassword ? '1' : '3')]),
+
         xml.XmlElement(
             xml.XmlName('Name'), [], [xml.XmlText(config['siteName'])]),
       ]);

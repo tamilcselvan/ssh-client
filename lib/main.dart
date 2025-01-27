@@ -68,7 +68,7 @@ class _SSHConfigGeneratorAppState extends State<SSHConfigGeneratorApp> {
             bottom: const TabBar(
               tabs: [
                 Tab(text: 'SSH Config Generator'),
-                Tab(text: 'SSH Config'),
+                Tab(text: 'Sites'),
                 Tab(text: 'Settings'),
               ],
             ),
@@ -286,28 +286,32 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         xml.XmlElement(
             xml.XmlName('Host'), [], [xml.XmlText(config['hostname'])]),
         xml.XmlElement(xml.XmlName('Port'), [], [xml.XmlText(config['port'])]),
+        xml.XmlElement(xml.XmlName('Protocol'), [], [xml.XmlText('1')]),
+        xml.XmlElement(xml.XmlName('Type'), [], [xml.XmlText('0')]),
         xml.XmlElement(
             xml.XmlName('User'), [], [xml.XmlText(config['username'])]),
-        if (usePassword)
+        if (config['usePassword'] == 1)
           xml.XmlElement(
               xml.XmlName('Pass'), [], [xml.XmlText(config['password'])])
         else
           xml.XmlElement(
               xml.XmlName('Keyfile'), [], [xml.XmlText(config['keyPath'])]),
-        // logontype 1 = normal, 2 = ask for password, 3 = ask for keyfile
-        // check usePassword to determine logontype
         xml.XmlElement(xml.XmlName('Logontype'), [],
-            [xml.XmlText(usePassword ? '1' : '3')]),
-
+            [xml.XmlText(config['usePassword'] == 1 ? '1' : '5')]),
+        xml.XmlElement(xml.XmlName('EncodingType'), [], [xml.XmlText('Auto')]),
+        xml.XmlElement(xml.XmlName('BypassProxy'), [], [xml.XmlText('0')]),
         xml.XmlElement(
             xml.XmlName('Name'), [], [xml.XmlText(config['siteName'])]),
+        xml.XmlElement(xml.XmlName('SyncBrowsing'), [], [xml.XmlText('0')]),
+        xml.XmlElement(
+            xml.XmlName('DirectoryComparison'), [], [xml.XmlText('0')]),
       ]);
 
       if (config['groupName'].isNotEmpty) {
         final groupNode = serversNode.findElements('Folder').firstWhere(
           (folder) =>
               folder.getAttribute('expanded') == '1' &&
-              folder.text.contains(config['groupName']),
+              folder.text.trim() == config['groupName'],
           orElse: () {
             final newGroupNode = xml.XmlElement(
                 xml.XmlName('Folder'),
@@ -375,7 +379,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context)?.animateTo(0);
+    DefaultTabController.of(context).animateTo(0);
   }
 
   void _confirmDeleteConfig(int id, String siteName) {
@@ -643,19 +647,19 @@ class _SSHConfigListState extends State<SSHConfigList> {
     }
 
     if (result.exitCode != 0) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Error"),
-          content: Text("Failed to run script: ${result.stderr}"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
-        ),
-      );
+      // showDialog(
+      //   context: context,
+      //   builder: (context) => AlertDialog(
+      //     title: const Text("Error"),
+      //     content: Text("Failed to run script: ${result.stderr}"),
+      //     actions: [
+      //       TextButton(
+      //         onPressed: () => Navigator.pop(context),
+      //         child: const Text("OK"),
+      //       ),
+      //     ],
+      //   ),
+      // );
     }
   }
 
@@ -698,7 +702,7 @@ class _SSHConfigListState extends State<SSHConfigList> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context)?.animateTo(0);
+    DefaultTabController.of(context).animateTo(0);
   }
 
   @override
@@ -723,14 +727,14 @@ class _SSHConfigListState extends State<SSHConfigList> {
             child: const Text("Truncate Table"),
           ),
         ),
-        Container(
-          alignment: Alignment.centerRight,
-          margin: const EdgeInsets.all(8.0),
-          child: ElevatedButton(
-            onPressed: _dropAndRecreateTable,
-            child: const Text("Drop and Recreate Table"),
-          ),
-        ),
+        // Container(
+        //   alignment: Alignment.centerRight,
+        //   margin: const EdgeInsets.all(8.0),
+        //   child: ElevatedButton(
+        //     onPressed: _dropAndRecreateTable,
+        //     child: const Text("Drop and Recreate Table"),
+        //   ),
+        // ),
         Expanded(
           child: FutureBuilder<List<Map<String, dynamic>>>(
             future: _configs,

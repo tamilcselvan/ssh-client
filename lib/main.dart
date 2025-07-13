@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -154,7 +155,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     } catch (e) {
-      print('Error inserting config: $e');
+      if (kDebugMode) {
+        print('Error inserting config: $e');
+      }
     }
   }
 
@@ -168,7 +171,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         whereArgs: [id],
       );
     } catch (e) {
-      print('Error updating config: $e');
+      if (kDebugMode) {
+        print('Error updating config: $e');
+      }
     }
   }
 
@@ -181,7 +186,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         whereArgs: [id],
       );
     } catch (e) {
-      print('Error deleting config: $e');
+      if (kDebugMode) {
+        print('Error deleting config: $e');
+      }
     }
   }
 
@@ -258,12 +265,12 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         editingId = null;
       });
 
-      // Get the current home directory
-      final homeDir = Platform.environment['HOME'] ?? '/home/tamilselvan';
+      // Get the user's home directory using path_provider for cross-platform compatibility
+      final homeDir = await getHomeDirectory();
 
       // save to file to home directory (for now)
       // $homeDir/ACS/sites/filename.sh
-      File file = File('$homeDir/ACS/sites/$filename');
+      File file = File(p.join(homeDir.path, 'ACS', 'sites', filename));
       await file.writeAsString(command);
 
       // Set execute permission
@@ -274,9 +281,15 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
     }
   }
 
+  Future<Directory> getHomeDirectory() async {
+    // For Linux and macOS, this typically returns /home/user or /Users/user
+    return getApplicationDocumentsDirectory();
+  }
+
   Future<void> _appendToFileZillaConfig(Map<String, dynamic> config) async {
-    final homeDir = Platform.environment['HOME'] ?? '/home/tamilselvan';
-    final filezillaConfigPath = '$homeDir/.config/filezilla/sitemanager.xml';
+    final homeDir = await getHomeDirectory();
+    final filezillaConfigPath =
+        p.join(homeDir.path, '.config', 'filezilla', 'sitemanager.xml');
     final file = File(filezillaConfigPath);
 
     if (await file.exists()) {
@@ -308,7 +321,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         final groupNode = serversNode.findElements('Folder').firstWhere(
           (folder) =>
               folder.getAttribute('expanded') == '1' &&
-              folder.text.contains(config['groupName']),
+              folder.innerText.contains(config['groupName']),
           orElse: () {
             final newGroupNode = xml.XmlElement(
                 xml.XmlName('Folder'),
@@ -326,7 +339,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       await file
           .writeAsString(document.toXmlString(pretty: true, indent: '  '));
     } else {
-      print('FileZilla config file not found.');
+      if (kDebugMode) {
+        print('FileZilla config file not found.');
+      }
     }
   }
 
@@ -376,7 +391,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context)?.animateTo(0);
+    DefaultTabController.of(context).animateTo(0);
   }
 
   void _confirmDeleteConfig(int id, String siteName) {
@@ -628,7 +643,9 @@ class _SSHConfigListState extends State<SSHConfigList> {
         whereArgs: [id],
       );
     } catch (e) {
-      print('Error deleting config: $e');
+      if (kDebugMode) {
+        print('Error deleting config: $e');
+      }
     }
   }
 
@@ -699,7 +716,12 @@ class _SSHConfigListState extends State<SSHConfigList> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context)?.animateTo(0);
+    DefaultTabController.of(context).animateTo(0);
+  }
+
+  Future<Directory> getHomeDirectory() async {
+    // For Linux and macOS, this typically returns /home/user or /Users/user
+    return getApplicationDocumentsDirectory();
   }
 
   @override
@@ -775,9 +797,10 @@ class _SSHConfigListState extends State<SSHConfigList> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               ElevatedButton(
-                                onPressed: () {
-                                  final filePath =
-                                      '${Platform.environment['HOME']}/ACS/sites/${config['filename']}';
+                                onPressed: () async {
+                                  final homeDir = await getHomeDirectory();
+                                  final filePath = p.join(homeDir.path, 'ACS',
+                                      'sites', config['filename']);
                                   _runScript(filePath);
                                 },
                                 child: const Text("Connect"),
@@ -809,12 +832,12 @@ class _SSHConfigListState extends State<SSHConfigList> {
                               const SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () {
-                                  final sshConfigGeneratorState = context
-                                      .findAncestorStateOfType<
+                                  final sshConfigGeneratorState =
+                                      context.findAncestorStateOfType<
                                           _SSHConfigGeneratorState>();
                                   if (sshConfigGeneratorState != null) {
-                                    duplicateConfig(
-                                        context, config, sshConfigGeneratorState);
+                                    duplicateConfig(context, config,
+                                        sshConfigGeneratorState);
                                   }
                                 },
                                 child: const Text("Duplicate"),
@@ -881,7 +904,9 @@ class SettingsTab extends StatelessWidget {
     await file.writeAsString(csv);
 
     // Show success message
-    print("Exported to $path");
+    if (kDebugMode) {
+      print("Exported to $path");
+    }
   }
 
   Future<void> _importFromCSV() async {
@@ -919,7 +944,9 @@ class SettingsTab extends StatelessWidget {
       });
 
       // Show success message
-      print("Imported from CSV");
+      if (kDebugMode) {
+        print("Imported from CSV");
+      }
     }
   }
 
@@ -973,7 +1000,9 @@ class SettingsTab extends StatelessWidget {
                   });
 
                   // Show success message
-                  print("Imported from CSV");
+                  if (kDebugMode) {
+                    print("Imported from CSV");
+                  }
                 }
               } else {
                 // Use FilePicker for other platforms

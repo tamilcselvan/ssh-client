@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sshconfiggenerator/main.dart';
 
 void copyToClipboard(BuildContext context, String text) {
   Clipboard.setData(ClipboardData(text: text));
@@ -22,6 +21,5 @@ void duplicateConfig(
     state.keyPathController.text = config['keyPath'];
     state.groupController.text = config['groupName'];
   });
-  DefaultTabController.of(context)?.animateTo(0);
-
+  DefaultTabController.of(context).animateTo(0);
 }

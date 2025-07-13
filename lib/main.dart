@@ -10,6 +10,7 @@ import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:xml/xml.dart' as xml;
+import 'features.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -795,6 +796,28 @@ class _SSHConfigListState extends State<SSHConfigList> {
                                       config['id'], config['siteName']);
                                 },
                                 child: const Text("Delete"),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () {
+                                  final command =
+                                      'sshpass -p \'${config['password']}\' ssh ${config['username']}@${config['hostname']} -p ${config['port']} -o ServerAliveInterval=60 -o ServerAliveCountMax=60';
+                                  copyToClipboard(context, command);
+                                },
+                                child: const Text("Copy"),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: () {
+                                  final sshConfigGeneratorState = context
+                                      .findAncestorStateOfType<
+                                          _SSHConfigGeneratorState>();
+                                  if (sshConfigGeneratorState != null) {
+                                    duplicateConfig(
+                                        context, config, sshConfigGeneratorState);
+                                  }
+                                },
+                                child: const Text("Duplicate"),
                               ),
                             ],
                           ),

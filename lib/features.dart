@@ -9,22 +9,19 @@ void copyToClipboard(BuildContext context, String text) {
   );
 }
 
-void duplicateConfig(BuildContext context, Map<String, dynamic> config) {
-  final sshConfigGeneratorState =
-      context.findAncestorStateOfType<_SSHConfigGeneratorState>();
-  if (sshConfigGeneratorState != null) {
-    sshConfigGeneratorState.setState(() {
-      sshConfigGeneratorState.editingId = null;
-      sshConfigGeneratorState.siteNameController.text =
-          '${config['siteName']} (copy)';
-      sshConfigGeneratorState.hostnameController.text = config['hostname'];
-      sshConfigGeneratorState.usernameController.text = config['username'];
-      sshConfigGeneratorState.portController.text = config['port'];
-      sshConfigGeneratorState.usePassword = config['usePassword'] == 1;
-      sshConfigGeneratorState.passwordController.text = config['password'];
-      sshConfigGeneratorState.keyPathController.text = config['keyPath'];
-      sshConfigGeneratorState.groupController.text = config['groupName'];
-    });
-    DefaultTabController.of(context)?.animateTo(0);
-  }
+void duplicateConfig(
+    BuildContext context, Map<String, dynamic> config, dynamic state) {
+  state.setState(() {
+    state.editingId = null;
+    state.siteNameController.text = '${config['siteName']} (copy)';
+    state.hostnameController.text = config['hostname'];
+    state.usernameController.text = config['username'];
+    state.portController.text = config['port'];
+    state.usePassword = config['usePassword'] == 1;
+    state.passwordController.text = config['password'];
+    state.keyPathController.text = config['keyPath'];
+    state.groupController.text = config['groupName'];
+  });
+  DefaultTabController.of(context)?.animateTo(0);
+
 }

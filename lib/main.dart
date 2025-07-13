@@ -809,7 +809,13 @@ class _SSHConfigListState extends State<SSHConfigList> {
                               const SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () {
-                                  duplicateConfig(context, config);
+                                  final sshConfigGeneratorState = context
+                                      .findAncestorStateOfType<
+                                          _SSHConfigGeneratorState>();
+                                  if (sshConfigGeneratorState != null) {
+                                    duplicateConfig(
+                                        context, config, sshConfigGeneratorState);
+                                  }
                                 },
                                 child: const Text("Duplicate"),
                               ),

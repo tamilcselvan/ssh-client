@@ -62,26 +62,88 @@ class _SSHConfigGeneratorAppState extends State<SSHConfigGeneratorApp> {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('SSH Config Generator'),
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'SSH Config Generator'),
-                Tab(text: 'SSH Config'),
-                Tab(text: 'Settings'),
-              ],
-            ),
-          ),
-          body: TabBarView(
+      home: Scaffold(
+        appBar: AppBar(
+          title: const Text('SSH Config Generator'),
+        ),
+        drawer: Drawer(
+          child: ListView(
+            padding: EdgeInsets.zero,
             children: [
-              SSHConfigGenerator(database: widget.database),
-              SSHConfigList(database: widget.database),
-              SettingsTab(database: widget.database),
+              const DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                ),
+                child: Text('Menu'),
+              ),
+              ListTile(
+                title: const Text('Preferences'),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Preferences'),
+                      content: const Text('Preferences not yet implemented.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                title: const Text('About'),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('About'),
+                      content: const Text('About not yet implemented.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                title: const Text('Check for Update'),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Check for Update'),
+                      content: const Text('Check for Update not yet implemented.'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ),
+        ),
+        body: Row(
+          children: [
+            Expanded(
+              flex: 1,
+              child: SSHConfigList(database: widget.database),
+            ),
+            Expanded(
+              flex: 1,
+              child: SSHConfigGenerator(database: widget.database),
+            ),
+          ],
         ),
       ),
     );
@@ -195,21 +257,39 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
   void generateScript() async {
     if (_validateInputs()) {
       String command;
-      if (usePassword) {
-        command =
-            "sshpass -p '${passwordController.text}' ssh ${usernameController.text}@${hostnameController.text} -p ${portController.text} -o ServerAliveInterval=60 -o ServerAliveCountMax=60\n";
-      } else {
-        command =
-            "ssh -i '${keyPathController.text}' ${usernameController.text}@${hostnameController.text} -p ${portController.text} -o ServerAliveInterval=60 -o ServerAliveCountMax=60\n";
-      }
-
       String filename;
-      if (groupController.text.isNotEmpty) {
-        filename =
-            "${groupController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}.sh";
+
+      if (Platform.isWindows) {
+        if (usePassword) {
+          command =
+              "plink.exe -pw ${passwordController.text} ${usernameController.text}@${hostnameController.text} -P ${portController.text}\n";
+        } else {
+          command =
+              "plink.exe -i '${keyPathController.text}' ${usernameController.text}@${hostnameController.text} -P ${portController.text}\n";
+        }
+        if (groupController.text.isNotEmpty) {
+          filename =
+              "${groupController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}.ps1";
+        } else {
+          filename =
+              "${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${Uuid().v4()}.ps1";
+        }
       } else {
-        filename =
-            "${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${Uuid().v4()}.sh";
+        if (usePassword) {
+          command =
+              "sshpass -p '${passwordController.text}' ssh ${usernameController.text}@${hostnameController.text} -p ${portController.text} -o ServerAliveInterval=60 -o ServerAliveCountMax=60\n";
+        } else {
+          command =
+              "ssh -i '${keyPathController.text}' ${usernameController.text}@${hostnameController.text} -p ${portController.text} -o ServerAliveInterval=60 -o ServerAliveCountMax=60\n";
+        }
+
+        if (groupController.text.isNotEmpty) {
+          filename =
+              "${groupController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}.sh";
+        } else {
+          filename =
+              "${siteNameController.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')}_${Uuid().v4()}.sh";
+        }
       }
 
       // For simplicity, we'll just print the script for now
@@ -274,7 +354,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       await file.writeAsString(command);
 
       // Set execute permission
-      await Process.run('chmod', ['+x', file.path]);
+      if (!Platform.isWindows) {
+        await Process.run('chmod', ['+x', file.path]);
+      }
 
       // Append to FileZilla config
       await _appendToFileZillaConfig(config);
@@ -391,7 +473,6 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context).animateTo(0);
   }
 
   void _confirmDeleteConfig(int id, String siteName) {
@@ -651,7 +732,9 @@ class _SSHConfigListState extends State<SSHConfigList> {
 
   void _runScript(String filePath) async {
     ProcessResult result;
-    if (Platform.isLinux) {
+    if (Platform.isWindows) {
+      result = await Process.run('powershell.exe', ['-File', filePath]);
+    } else if (Platform.isLinux) {
       result = await Process.run('x-terminal-emulator', ['-e', filePath]);
     } else if (Platform.isMacOS) {
       result = await Process.run(
@@ -716,7 +799,6 @@ class _SSHConfigListState extends State<SSHConfigList> {
       keyPathController.text = config['keyPath'];
       groupController.text = config['groupName'];
     });
-    DefaultTabController.of(context).animateTo(0);
   }
 
   Future<Directory> getHomeDirectory() async {

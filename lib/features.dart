@@ -23,4 +23,5 @@ void duplicateConfig(
     state.groupController.text = config['groupName'];
   });
   DefaultTabController.of(context)?.animateTo(0);
+
 }

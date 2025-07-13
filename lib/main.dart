@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:sqflite/sqflite.dart' hide Database;
 import 'package:sqflite_common/sqlite_api.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as ffi;
 import 'package:csv/csv.dart';
@@ -16,7 +17,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize sqflite_common_ffi for desktop platforms
-  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     ffi.sqfliteFfiInit();
     databaseFactory = ffi.databaseFactoryFfi;
   }
@@ -259,18 +260,20 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       });
 
       // Get the current home directory
-      final homeDir = Platform.environment['HOME'] ?? '/home/tamilselvan';
+      if (!kIsWeb) {
+        final homeDir = Platform.environment['HOME'] ?? '/home/tamilselvan';
 
-      // save to file to home directory (for now)
-      // $homeDir/ACS/sites/filename.sh
-      File file = File('$homeDir/ACS/sites/$filename');
-      await file.writeAsString(command);
+        // save to file to home directory (for now)
+        // $homeDir/ACS/sites/filename.sh
+        File file = File('$homeDir/ACS/sites/$filename');
+        await file.writeAsString(command);
 
-      // Set execute permission
-      await Process.run('chmod', ['+x', file.path]);
+        // Set execute permission
+        await Process.run('chmod', ['+x', file.path]);
 
-      // Append to FileZilla config
-      await _appendToFileZillaConfig(config);
+        // Append to FileZilla config
+        await _appendToFileZillaConfig(config);
+      }
     }
   }
 
@@ -633,6 +636,10 @@ class _SSHConfigListState extends State<SSHConfigList> {
   }
 
   void _runScript(String filePath) async {
+    if (kIsWeb) {
+      // Cannot run scripts on web
+      return;
+    }
     ProcessResult result;
     if (Platform.isLinux) {
       result = await Process.run('x-terminal-emulator', ['-e', filePath]);
@@ -935,51 +942,7 @@ class SettingsTab extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ElevatedButton(
-            onPressed: () async {
-              if (Platform.isLinux) {
-                // Use FilePicker for Linux
-                FilePickerResult? result = await FilePicker.platform.pickFiles(
-                  type: FileType.any,
-                  allowedExtensions: ['csv'],
-                );
-
-                if (result != null) {
-                  final file = File(result.files.single.path!);
-                  final csv = await file.readAsString();
-                  List<List<dynamic>> rows =
-                      const CsvToListConverter().convert(csv);
-
-                  final db = await database;
-                  await db.transaction((txn) async {
-                    for (int i = 1; i < rows.length; i++) {
-                      List<dynamic> row = rows[i];
-                      await txn.insert(
-                        'configs',
-                        {
-                          'id': row[0],
-                          'siteName': row[1],
-                          'hostname': row[2],
-                          'username': row[3],
-                          'port': row[4],
-                          'usePassword': row[5],
-                          'password': row[6],
-                          'keyPath': row[7],
-                          'groupName': row[8],
-                          'filename': row[9],
-                        },
-                        conflictAlgorithm: ConflictAlgorithm.replace,
-                      );
-                    }
-                  });
-
-                  // Show success message
-                  print("Imported from CSV");
-                }
-              } else {
-                // Use FilePicker for other platforms
-                await _importFromCSV();
-              }
-            },
+            onPressed: _importFromCSV,
             child: const Text("Import from CSV"),
           ),
         ],

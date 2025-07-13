@@ -36,7 +36,12 @@ void main() async {
     },
     version: 2,
   );
-  runApp(SSHConfigGeneratorApp(database: database));
+  runApp(MaterialApp(
+    debugShowCheckedModeBanner: false,
+    title: 'SSH Config Generator',
+    theme: ThemeData(primarySwatch: Colors.blue),
+    home: SSHConfigGeneratorApp(database: database),
+  ));
 }
 
 class SSHConfigGeneratorApp extends StatefulWidget {
@@ -49,6 +54,14 @@ class SSHConfigGeneratorApp extends StatefulWidget {
 }
 
 class _SSHConfigGeneratorAppState extends State<SSHConfigGeneratorApp> {
+  Map<String, dynamic>? editingConfig;
+
+  void setEditingConfig(Map<String, dynamic>? config) {
+    setState(() {
+      editingConfig = config;
+    });
+  }
+
   Future<List<Map<String, dynamic>>> _listConfigs() async {
     final db = await widget.database;
     return db.query('configs');
@@ -56,95 +69,96 @@ class _SSHConfigGeneratorAppState extends State<SSHConfigGeneratorApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'SSH Config Generator',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('SSH Config Generator'),
       ),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('SSH Config Generator'),
-        ),
-        drawer: Drawer(
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              const DrawerHeader(
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                ),
-                child: Text('Menu'),
-              ),
-              ListTile(
-                title: const Text('Preferences'),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Preferences'),
-                      content: const Text('Preferences not yet implemented.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                title: const Text('About'),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('About'),
-                      content: const Text('About not yet implemented.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                title: const Text('Check for Update'),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Check for Update'),
-                      content: const Text('Check for Update not yet implemented.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('OK'),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-        body: Row(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
-            Expanded(
-              flex: 1,
-              child: SSHConfigList(database: widget.database),
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text('Menu'),
             ),
-            Expanded(
-              flex: 1,
-              child: SSHConfigGenerator(database: widget.database),
+            ListTile(
+              title: const Text('Preferences'),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Preferences'),
+                    content: const Text('Preferences not yet implemented.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              title: const Text('About'),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('About'),
+                    content: const Text('About not yet implemented.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              title: const Text('Check for Update'),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Check for Update'),
+                    content:
+                        const Text('Check for Update not yet implemented.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
+      ),
+      body: Row(
+        children: [
+          Expanded(
+            flex: 1,
+            child: SSHConfigList(
+              database: widget.database,
+              onEditConfig: setEditingConfig,
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: SSHConfigGenerator(
+              database: widget.database,
+              editingConfig: editingConfig,
+              onEditingComplete: () => setEditingConfig(null),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -152,8 +166,15 @@ class _SSHConfigGeneratorAppState extends State<SSHConfigGeneratorApp> {
 
 class SSHConfigGenerator extends StatefulWidget {
   final Future<Database> database;
+  final Map<String, dynamic>? editingConfig;
+  final VoidCallback? onEditingComplete;
 
-  const SSHConfigGenerator({super.key, required this.database});
+  const SSHConfigGenerator({
+    super.key,
+    required this.database,
+    this.editingConfig,
+    this.onEditingComplete,
+  });
 
   @override
   _SSHConfigGeneratorState createState() => _SSHConfigGeneratorState();
@@ -179,6 +200,22 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
     super.initState();
     _loadGroupNames();
     _configs = _listConfigs();
+
+    if (widget.editingConfig != null) {
+      _populateFields(widget.editingConfig!);
+    }
+  }
+
+  void _populateFields(Map<String, dynamic> config) {
+    editingId = config['id'];
+    siteNameController.text = config['siteName'];
+    hostnameController.text = config['hostname'];
+    usernameController.text = config['username'];
+    portController.text = config['port'];
+    usePassword = config['usePassword'] == 1;
+    passwordController.text = config['password'];
+    keyPathController.text = config['keyPath'];
+    groupController.text = config['groupName'];
   }
 
   Future<void> _loadGroupNames() async {
@@ -350,7 +387,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
 
       // save to file to home directory (for now)
       // $homeDir/ACS/sites/filename.sh
-      File file = File(p.join(homeDir.path, 'ACS', 'sites', filename));
+      File file = File(p.join(homeDir.path, 'sites', filename));
       await file.writeAsString(command);
 
       // Set execute permission
@@ -359,7 +396,35 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
       }
 
       // Append to FileZilla config
-      await _appendToFileZillaConfig(config);
+      if (await fileZillaExists()) {
+        await _appendToFileZillaConfig(config);
+      }
+
+      // Call the onEditingComplete callback if provided
+      widget.onEditingComplete?.call();
+    }
+  }
+
+  // Add this helper function in your _SSHConfigGeneratorState class:
+  Future<bool> fileZillaExists() async {
+    if (Platform.isWindows) {
+      final filezillaPaths = [
+        r'C:\Program Files\FileZilla FTP Client\filezilla.exe',
+        r'C:\Program Files (x86)\FileZilla FTP Client\filezilla.exe',
+      ];
+      for (final path in filezillaPaths) {
+        if (await File(path).exists()) return true;
+      }
+      return false;
+    } else {
+      // On Linux/macOS, check if 'filezilla' is in PATH
+      try {
+        final result = await Process.run('which', ['filezilla']);
+        return result.exitCode == 0 &&
+            (result.stdout as String).trim().isNotEmpty;
+      } catch (_) {
+        return false;
+      }
     }
   }
 
@@ -436,13 +501,13 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         (!usePassword && keyPathController.text.isEmpty)) {
       showDialog(
         context: context,
-        builder: (context) => const AlertDialog(
-          title: Text("Error"),
-          content: Text("Please fill in all required fields."),
+        builder: (context) => AlertDialog(
+          title: const Text("Error"),
+          content: const Text("Please fill in all required fields."),
           actions: [
             TextButton(
-              onPressed: null,
-              child: Text("OK"),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
             ),
           ],
         ),
@@ -635,8 +700,13 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
 
 class SSHConfigList extends StatefulWidget {
   final Future<Database> database;
+  final void Function(Map<String, dynamic>) onEditConfig;
 
-  const SSHConfigList({super.key, required this.database});
+  const SSHConfigList({
+    super.key,
+    required this.database,
+    required this.onEditConfig,
+  });
 
   @override
   _SSHConfigListState createState() => _SSHConfigListState();
@@ -788,17 +858,7 @@ class _SSHConfigListState extends State<SSHConfigList> {
   }
 
   void _editConfig(Map<String, dynamic> config) {
-    setState(() {
-      editingId = config['id'];
-      siteNameController.text = config['siteName'];
-      hostnameController.text = config['hostname'];
-      usernameController.text = config['username'];
-      portController.text = config['port'];
-      usePassword = config['usePassword'] == 1;
-      passwordController.text = config['password'];
-      keyPathController.text = config['keyPath'];
-      groupController.text = config['groupName'];
-    });
+    widget.onEditConfig(config);
   }
 
   Future<Directory> getHomeDirectory() async {
@@ -890,7 +950,7 @@ class _SSHConfigListState extends State<SSHConfigList> {
                               const SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () {
-                                  _editConfig(config);
+                                  widget.onEditConfig(config);
                                 },
                                 child: const Text("Edit"),
                               ),

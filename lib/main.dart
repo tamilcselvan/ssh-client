@@ -122,8 +122,10 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
   Future<void> _loadGroupNames() async {
     final db = await widget.database;
     final List<Map<String, dynamic>> configs = await db.query('configs');
-    final Set<String> groups =
-        configs.map((config) => config['groupName'] as String).toSet();
+    final Set<String> groups = configs
+        .map((config) => (config['groupName'] ?? '').toString().trim())
+        .where((group) => group.isNotEmpty)
+        .toSet();
     setState(() {
       groupNames = groups.toList();
     });
@@ -267,10 +269,14 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
 
       // Get the user's home directory using path_provider for cross-platform compatibility
       final homeDir = await getHomeDirectory();
+      final sitesDir = Directory(p.join(homeDir.path, 'ACS', 'sites'));
+      if (!await sitesDir.exists()) {
+        await sitesDir.create(recursive: true);
+      }
 
       // save to file to home directory (for now)
       // $homeDir/ACS/sites/filename.sh
-      File file = File(p.join(homeDir.path, 'ACS', 'sites', filename));
+      File file = File(p.join(sitesDir.path, filename));
       await file.writeAsString(command);
 
       // Set execute permission
@@ -282,7 +288,10 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
   }
 
   Future<Directory> getHomeDirectory() async {
-    // For Linux and macOS, this typically returns /home/user or /Users/user
+    final homePath = Platform.environment['HOME'];
+    if (homePath != null && homePath.isNotEmpty) {
+      return Directory(homePath);
+    }
     return getApplicationDocumentsDirectory();
   }
 
@@ -302,7 +311,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         xml.XmlElement(xml.XmlName('Port'), [], [xml.XmlText(config['port'])]),
         xml.XmlElement(
             xml.XmlName('User'), [], [xml.XmlText(config['username'])]),
-        if (usePassword)
+        if (config['usePassword'] == 1)
           xml.XmlElement(
               xml.XmlName('Pass'), [], [xml.XmlText(config['password'])])
         else
@@ -311,7 +320,7 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
         // logontype 1 = normal, 2 = ask for password, 3 = ask for keyfile
         // check usePassword to determine logontype
         xml.XmlElement(xml.XmlName('Logontype'), [],
-            [xml.XmlText(usePassword ? '1' : '3')]),
+            [xml.XmlText(config['usePassword'] == 1 ? '1' : '3')]),
 
         xml.XmlElement(
             xml.XmlName('Name'), [], [xml.XmlText(config['siteName'])]),
@@ -346,17 +355,22 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
   }
 
   bool _validateInputs() {
+    final port = int.tryParse(portController.text);
     if (siteNameController.text.isEmpty ||
         hostnameController.text.isEmpty ||
         usernameController.text.isEmpty ||
         portController.text.isEmpty ||
         (usePassword && passwordController.text.isEmpty) ||
-        (!usePassword && keyPathController.text.isEmpty)) {
+        (!usePassword && keyPathController.text.isEmpty) ||
+        port == null ||
+        port < 1 ||
+        port > 65535) {
       showDialog(
         context: context,
         builder: (context) => const AlertDialog(
           title: Text("Error"),
-          content: Text("Please fill in all required fields."),
+          content: Text(
+              "Please fill in all required fields and provide a valid port (1-65535)."),
           actions: [
             TextButton(
               onPressed: null,
@@ -523,7 +537,9 @@ class _SSHConfigGeneratorState extends State<SSHConfigGenerator> {
                 return const Iterable<String>.empty();
               }
               return groupNames.where((String option) {
-                return option.contains(textEditingValue.text.toLowerCase());
+                return option
+                    .toLowerCase()
+                    .contains(textEditingValue.text.toLowerCase());
               });
             },
             onSelected: (String selection) {
@@ -823,8 +839,9 @@ class _SSHConfigListState extends State<SSHConfigList> {
                               const SizedBox(width: 8),
                               ElevatedButton(
                                 onPressed: () {
-                                  final command =
-                                      'sshpass -p \'${config['password']}\' ssh ${config['username']}@${config['hostname']} -p ${config['port']} -o ServerAliveInterval=60 -o ServerAliveCountMax=60';
+                                  final command = config['usePassword'] == 1
+                                      ? 'sshpass -p \'${config['password']}\' ssh ${config['username']}@${config['hostname']} -p ${config['port']} -o ServerAliveInterval=60 -o ServerAliveCountMax=60'
+                                      : 'ssh -i \'${config['keyPath']}\' ${config['username']}@${config['hostname']} -p ${config['port']} -o ServerAliveInterval=60 -o ServerAliveCountMax=60';
                                   copyToClipboard(context, command);
                                 },
                                 child: const Text("Copy"),
